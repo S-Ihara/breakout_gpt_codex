@@ -104,10 +104,10 @@ function collisionDetection() {
         for (let col = 0; col < brick.cols; col++) {
             const b = bricks[row][col];
             if (b.status === 1) {
-                if (ball.x > b.x && 
-                    ball.x < b.x + brick.width && 
-                    ball.y > b.y && 
-                    ball.y < b.y + brick.height) {
+                if (ball.x + ball.radius > b.x && 
+                    ball.x - ball.radius < b.x + brick.width && 
+                    ball.y + ball.radius > b.y && 
+                    ball.y - ball.radius < b.y + brick.height) {
                     ball.dy = -ball.dy;
                     b.status = 0;
                     score += 10;
@@ -147,6 +147,10 @@ function updateBall() {
         // Add some variation based on where the ball hits the paddle
         const hitPos = (ball.x - paddle.x) / paddle.width;
         ball.dx = (hitPos - 0.5) * ball.speed * 2;
+        // Ensure minimum horizontal velocity to prevent straight up/down bouncing
+        if (Math.abs(ball.dx) < 1) {
+            ball.dx = ball.dx >= 0 ? 1 : -1;
+        }
         ball.dy = -Math.abs(ball.dy);
     }
     
@@ -258,7 +262,8 @@ function keyUp(e) {
 
 // Mouse/Touch controls
 function mouseMoveHandler(e) {
-    const relativeX = e.clientX - canvas.offsetLeft;
+    const rect = canvas.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
     if (relativeX > 0 && relativeX < canvas.width) {
         paddle.x = relativeX - paddle.width / 2;
     }
