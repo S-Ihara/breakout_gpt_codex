@@ -43,6 +43,11 @@ python3 -m http.server 8000
 http://localhost:8000
 ```
 
+## 🚀 GitHub Pages Deployment
+
+This project deploys to GitHub Pages using the workflow in `.github/workflows/deploy-pages.yml`.
+Pushes to the `main` branch (or manual workflow runs) will publish the static files to Pages.
+
 ## 📝 License
 
 This project is open source and available under the MIT License.

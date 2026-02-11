@@ -5,8 +5,10 @@ const livesElement = document.getElementById('lives');
 const restartBtn = document.getElementById('restartBtn');
 
 // Game variables
+const INITIAL_LIVES = 3;
+const POINTS_PER_BRICK = 10;
 let score = 0;
-let lives = 3;
+let lives = INITIAL_LIVES;
 let gameStarted = false;
 let gameOver = false;
 
@@ -110,10 +112,10 @@ function collisionDetection() {
                     ball.y - ball.radius < b.y + brick.height) {
                     ball.dy = -ball.dy;
                     b.status = 0;
-                    score += 10;
+                    score += POINTS_PER_BRICK;
                     
                     // Check if all bricks are destroyed
-                    if (score === brick.rows * brick.cols * 10) {
+                    if (score === brick.rows * brick.cols * POINTS_PER_BRICK) {
                         drawWinMessage();
                         gameOver = true;
                     }
@@ -186,8 +188,8 @@ function updatePaddle() {
 function resetBall() {
     ball.x = canvas.width / 2;
     ball.y = canvas.height - 60;
-    ball.dx = 3;
-    ball.dy = -3;
+    ball.dx = ball.speed;
+    ball.dy = -ball.speed;
 }
 
 // Draw win message
@@ -282,7 +284,7 @@ function touchMoveHandler(e) {
 // Restart game
 function restartGame() {
     score = 0;
-    lives = 3;
+    lives = INITIAL_LIVES;
     gameStarted = false;
     gameOver = false;
     resetBall();
