@@ -1,6 +1,6 @@
-# ブロック崩し (Breakout Game)
+# ブロック崩し with GPT Codex (Breakout Game)
 
-A classic breakout game built with HTML5 Canvas, CSS, and JavaScript. Play it directly in your browser!
+A classic breakout game built with HTML5 Canvas, CSS, and JavaScript using GPT Codex. Play it directly in your browser!
 
 ## 🎮 Play Now
 
