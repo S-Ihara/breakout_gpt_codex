@@ -243,7 +243,10 @@ function draw() {
 }
 
 // Keyboard controls
-function startGame() {
+function startGame(e) {
+    if (e) {
+        e.preventDefault();
+    }
     if (!gameOver) {
         gameStarted = true;
     }
@@ -301,7 +304,7 @@ document.addEventListener('keydown', keyDown);
 document.addEventListener('keyup', keyUp);
 canvas.addEventListener('mousemove', mouseMoveHandler);
 canvas.addEventListener('touchmove', touchMoveHandler, { passive: false });
-canvas.addEventListener('touchstart', startGame, { passive: true });
+canvas.addEventListener('touchstart', startGame, { passive: false });
 canvas.addEventListener('click', startGame);
 restartBtn.addEventListener('click', restartGame);
 
