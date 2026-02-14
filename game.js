@@ -219,7 +219,7 @@ function drawStartMessage() {
     ctx.font = '20px Arial';
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    ctx.fillText('スペースキーで開始', canvas.width / 2, canvas.height / 2);
+    ctx.fillText('スペースキーまたはタップで開始', canvas.width / 2, canvas.height / 2);
 }
 
 // Main draw function
@@ -243,15 +243,19 @@ function draw() {
 }
 
 // Keyboard controls
+function startGame() {
+    if (!gameOver) {
+        gameStarted = true;
+    }
+}
+
 function keyDown(e) {
     if (e.key === 'Right' || e.key === 'ArrowRight') {
         paddle.dx = paddle.speed;
     } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
         paddle.dx = -paddle.speed;
     } else if (e.key === ' ' || e.key === 'Spacebar') {
-        if (!gameOver) {
-            gameStarted = true;
-        }
+        startGame();
     }
 }
 
@@ -297,6 +301,8 @@ document.addEventListener('keydown', keyDown);
 document.addEventListener('keyup', keyUp);
 canvas.addEventListener('mousemove', mouseMoveHandler);
 canvas.addEventListener('touchmove', touchMoveHandler, { passive: false });
+canvas.addEventListener('touchstart', startGame, { passive: true });
+canvas.addEventListener('click', startGame);
 restartBtn.addEventListener('click', restartGame);
 
 // Initialize and start game

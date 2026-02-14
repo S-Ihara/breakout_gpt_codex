@@ -9,7 +9,7 @@ A classic breakout game built with HTML5 Canvas, CSS, and JavaScript using GPT C
 ## 📖 How to Play
 
 - Use **← →** arrow keys or **mouse** to move the paddle
-- Press **Space** to start the game
+- Press **Space** or **tap/click** the game area to start the game
 - Break all the bricks to win!
 - You have 3 lives - don't let the ball fall!
 
