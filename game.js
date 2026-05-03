@@ -26,16 +26,22 @@ const paddle = {
 };
 let paddleWideTimer = 0;
 
+// Ball initial state constants
+const BALL_INITIAL_X = canvas.width / 2;
+const BALL_INITIAL_Y = canvas.height - 60;
+const BALL_RADIUS = 8;
+const BALL_SPEED = 3;
+
 // Balls array (supports multi-ball)
 let balls = [];
 function resetBall() {
     balls = [{
-        x: canvas.width / 2,
-        y: canvas.height - 60,
-        radius: 8,
-        dx: 3,
-        dy: -3,
-        speed: 3
+        x: BALL_INITIAL_X,
+        y: BALL_INITIAL_Y,
+        radius: BALL_RADIUS,
+        dx: BALL_SPEED,
+        dy: -BALL_SPEED,
+        speed: BALL_SPEED
     }];
 }
 
@@ -49,6 +55,7 @@ const ITEM_LABELS = { multiball: '●●', widePaddle: '━━', beam: '⚡' };
 let items = [];
 
 // Beams (shots fired upward from paddle)
+const BEAM_SPEED = 8;
 let beams = [];
 let beamAvailable = false;
 
@@ -225,7 +232,7 @@ function beamBrickCollision(beam) {
 // Apply a collected item's effect
 function applyItem(type) {
     if (type === 'multiball') {
-        const ref = balls[0] || { x: canvas.width / 2, y: canvas.height - 60, radius: 8, dx: 3, dy: -3, speed: 3 };
+        const ref = balls[0] || { x: BALL_INITIAL_X, y: BALL_INITIAL_Y, radius: BALL_RADIUS, dx: BALL_SPEED, dy: -BALL_SPEED, speed: BALL_SPEED };
         balls.push({
             x: ref.x,
             y: ref.y,
@@ -331,7 +338,6 @@ function updateItems() {
 
 // Update beams
 function updateBeams() {
-    const BEAM_SPEED = 8;
     beams = beams.filter(beam => {
         beam.y -= BEAM_SPEED;
         if (beam.y + beam.height < 0) return false;
