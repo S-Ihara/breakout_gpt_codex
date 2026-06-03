@@ -422,10 +422,13 @@ function startGame(e) {
 
 function keyDown(e) {
     if (e.key === 'Right' || e.key === 'ArrowRight') {
+        e.preventDefault();
         paddle.dx = paddle.speed;
     } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+        e.preventDefault();
         paddle.dx = -paddle.speed;
     } else if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
         if (gameStarted && beamAvailable) {
             fireBeam();
         } else {
