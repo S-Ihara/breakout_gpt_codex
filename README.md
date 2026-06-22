@@ -19,6 +19,9 @@ A classic breakout game built with HTML5 Canvas, CSS, and JavaScript using GPT C
 - Smooth ball physics with paddle angle control
 - Score tracking
 - Lives system
+- Dynamic sound effects (brick hit, paddle hit, beam shot, item get, miss)
+- Immersive visual effects (brick fragments, shockwaves, flash, ball trail)
+- Impact feedback (screen shake, vibration on supported devices, combo popups)
 - Win/Lose states
 - Responsive controls (keyboard and mouse)
 - Beautiful gradient design
