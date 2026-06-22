@@ -11,6 +11,21 @@ let score = 0;
 let lives = INITIAL_LIVES;
 let gameStarted = false;
 let gameOver = false;
+let comboCount = 0;
+let comboTimer = 0;
+
+// Audio
+let audioCtx = null;
+let audioUnlocked = false;
+
+// Visual effects
+let particles = [];
+let shockwaves = [];
+let floatingTexts = [];
+let ballTrails = [];
+let shakeIntensity = 0;
+let shakeFrames = 0;
+let hitFlashAlpha = 0;
 
 // Paddle properties
 const PADDLE_NORMAL_WIDTH = 80;
@@ -81,6 +96,109 @@ function initBricks() {
             bricks[row][col] = { x: 0, y: 0, status: 1 };
         }
     }
+
+    function initAudio() {
+        if (audioCtx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        audioCtx = new AudioContext();
+    }
+
+    function unlockAudio() {
+        initAudio();
+        if (!audioCtx) return;
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        audioUnlocked = true;
+    }
+
+    function playTone({ freq, duration = 0.08, type = 'sine', volume = 0.08, endFreq = null }) {
+        if (!audioCtx || !audioUnlocked) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq) {
+            osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+        }
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+    }
+
+    function playSound(name) {
+        switch (name) {
+            case 'brick':
+                playTone({ freq: 520, endFreq: 760, duration: 0.05, type: 'square', volume: 0.05 });
+                break;
+            case 'paddle':
+                playTone({ freq: 220, endFreq: 340, duration: 0.07, type: 'triangle', volume: 0.06 });
+                break;
+            case 'wall':
+                playTone({ freq: 170, endFreq: 120, duration: 0.05, type: 'sine', volume: 0.04 });
+                break;
+            case 'item':
+                playTone({ freq: 440, duration: 0.05, type: 'triangle', volume: 0.06 });
+                playTone({ freq: 660, duration: 0.07, type: 'triangle', volume: 0.05 });
+                break;
+            case 'beam':
+                playTone({ freq: 300, endFreq: 1200, duration: 0.12, type: 'sawtooth', volume: 0.04 });
+                break;
+            case 'loseLife':
+                playTone({ freq: 300, endFreq: 120, duration: 0.2, type: 'sawtooth', volume: 0.07 });
+                break;
+            case 'clear':
+                playTone({ freq: 523, duration: 0.1, type: 'triangle', volume: 0.06 });
+                playTone({ freq: 659, duration: 0.13, type: 'triangle', volume: 0.06 });
+                playTone({ freq: 784, duration: 0.18, type: 'triangle', volume: 0.06 });
+                break;
+            default:
+                break;
+        }
+    }
+
+    function addShake(intensity, frames) {
+        shakeIntensity = Math.max(shakeIntensity, intensity);
+        shakeFrames = Math.max(shakeFrames, frames);
+    }
+
+    function addHitFlash(alpha = 0.25) {
+        hitFlashAlpha = Math.min(0.45, Math.max(hitFlashAlpha, alpha));
+    }
+
+    function spawnShockwave(x, y, color) {
+        shockwaves.push({ x, y, radius: 4, maxRadius: 40, life: 14, color });
+    }
+
+    function spawnBrickParticles(x, y, color) {
+        const count = 14;
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+            const speed = 1 + Math.random() * 3.2;
+            particles.push({
+                x,
+                y,
+                dx: Math.cos(angle) * speed,
+                dy: Math.sin(angle) * speed - 0.3,
+                size: 2 + Math.random() * 2.5,
+                life: 26 + Math.floor(Math.random() * 12),
+                color
+            });
+        }
+    }
+
+    function addFloatingText(text, x, y, color = '#fff') {
+        floatingTexts.push({ text, x, y, dy: -1.1, life: 55, color });
+    }
+
+    function triggerVibration(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+    }
 }
 
 // Draw balls
@@ -89,6 +207,19 @@ function drawBalls() {
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
+        ctx.shadowColor = '#9be7ff';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.closePath();
+        ctx.shadowBlur = 0;
+    });
+}
+
+function drawBallTrails() {
+    ballTrails.forEach(trail => {
+        ctx.beginPath();
+        ctx.arc(trail.x, trail.y, trail.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(155, 231, 255, ${trail.life / 18})`;
         ctx.fill();
         ctx.closePath();
     });
@@ -163,19 +294,66 @@ function drawBeamIndicator() {
         ctx.textAlign = 'left';
         ctx.fillText('⚡ BEAM READY [Space]', 8, canvas.height - 8);
     }
+
+    function drawParticles() {
+        particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        });
+    }
+
+    function drawShockwaves() {
+        shockwaves.forEach(sw => {
+            ctx.beginPath();
+            ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${sw.color}, ${sw.life / 14})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.closePath();
+        });
+    }
+
+    function drawFloatingTexts() {
+        floatingTexts.forEach(ft => {
+            ctx.font = 'bold 14px Arial';
+            ctx.fillStyle = ft.color;
+            ctx.textAlign = 'center';
+            ctx.fillText(ft.text, ft.x, ft.y);
+        });
+    }
+
+    function drawHitFlash() {
+        if (hitFlashAlpha <= 0) return;
+        ctx.fillStyle = `rgba(255, 255, 255, ${hitFlashAlpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
 // Destroy a brick, add score, and possibly drop an item
 function destroyBrick(row, col) {
-    bricks[row][col].status = 0;
+    const targetBrick = bricks[row][col];
+    targetBrick.status = 0;
     score += POINTS_PER_BRICK;
+    comboCount++;
+    comboTimer = 120;
+    playSound('brick');
+    spawnBrickParticles(targetBrick.x + brick.width / 2, targetBrick.y + brick.height / 2, brick.colors[row]);
+    spawnShockwave(targetBrick.x + brick.width / 2, targetBrick.y + brick.height / 2, '255, 255, 255');
+    addFloatingText(`+${POINTS_PER_BRICK}`, targetBrick.x + brick.width / 2, targetBrick.y + 4, '#fff');
+    addShake(3, 8);
+    addHitFlash(0.15);
+    triggerVibration(8);
+
+    if (comboCount >= 3 && comboCount % 3 === 0) {
+        addFloatingText(`x${comboCount} COMBO!`, canvas.width / 2, canvas.height - 70, '#FFD93D');
+    }
 
     // Drop item with set probability
     if (Math.random() < ITEM_DROP_CHANCE) {
         const type = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
         items.push({
-            x: bricks[row][col].x + brick.width / 2 - ITEM_SIZE / 2,
-            y: bricks[row][col].y,
+            x: targetBrick.x + brick.width / 2 - ITEM_SIZE / 2,
+            y: targetBrick.y,
             type
         });
     }
@@ -188,6 +366,10 @@ function destroyBrick(row, col) {
         }
     }
     if (remaining === 0) {
+        playSound('clear');
+        addShake(8, 20);
+        addHitFlash(0.35);
+        triggerVibration([30, 25, 30]);
         drawWinMessage();
         gameOver = true;
     }
@@ -231,6 +413,12 @@ function beamBrickCollision(beam) {
 
 // Apply a collected item's effect
 function applyItem(type) {
+    playSound('item');
+    addFloatingText(`GET ${ITEM_LABELS[type]}`, paddle.x + paddle.width / 2, paddle.y - 6, ITEM_COLORS[type]);
+    spawnShockwave(paddle.x + paddle.width / 2, paddle.y + paddle.height / 2, '120, 230, 255');
+    addHitFlash(0.2);
+    triggerVibration(12);
+
     if (type === 'multiball') {
         const ref = balls[0] || { x: BALL_INITIAL_X, y: BALL_INITIAL_Y, radius: BALL_RADIUS, dx: BALL_SPEED, dy: -BALL_SPEED, speed: BALL_SPEED };
         balls.push({
@@ -254,17 +442,23 @@ function updateBalls() {
     if (!gameStarted || gameOver) return;
 
     balls = balls.filter(b => {
+        ballTrails.push({ x: b.x, y: b.y, radius: Math.max(1.5, b.radius * 0.7), life: 18 });
         b.x += b.dx;
         b.y += b.dy;
 
         // Wall collision (left and right)
         if (b.x + b.radius > canvas.width || b.x - b.radius < 0) {
             b.dx = -b.dx;
+            playSound('wall');
+            addShake(2, 5);
+            spawnShockwave(Math.max(b.radius, Math.min(canvas.width - b.radius, b.x)), b.y, '255, 255, 255');
         }
 
         // Wall collision (top)
         if (b.y - b.radius < 0) {
             b.dy = -b.dy;
+            playSound('wall');
+            addShake(1.5, 4);
         }
 
         // Paddle collision
@@ -278,6 +472,11 @@ function updateBalls() {
                 b.dx = b.dx >= 0 ? 1 : -1;
             }
             b.dy = -Math.abs(b.dy);
+            playSound('paddle');
+            addShake(2.5, 6);
+            addHitFlash(0.12);
+            spawnShockwave(b.x, paddle.y, '140, 220, 255');
+            triggerVibration(6);
         }
 
         // Brick collision
@@ -291,6 +490,13 @@ function updateBalls() {
     if (balls.length === 0 && !gameOver) {
         lives--;
         beamAvailable = false;
+        comboCount = 0;
+        comboTimer = 0;
+        playSound('loseLife');
+        addShake(8, 18);
+        addHitFlash(0.35);
+        addFloatingText('MISS!', canvas.width / 2, canvas.height / 2, '#FF6B6B');
+        triggerVibration([30, 20, 30]);
         if (lives === 0) {
             drawGameOverMessage();
             gameOver = true;
@@ -346,10 +552,59 @@ function updateBeams() {
     });
 }
 
+function updateEffects() {
+    particles = particles.filter(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+        p.dy += 0.06;
+        p.life--;
+        return p.life > 0;
+    });
+
+    shockwaves = shockwaves.filter(sw => {
+        sw.radius += (sw.maxRadius - sw.radius) * 0.25;
+        sw.life--;
+        return sw.life > 0;
+    });
+
+    floatingTexts = floatingTexts.filter(ft => {
+        ft.y += ft.dy;
+        ft.life--;
+        return ft.life > 0;
+    });
+
+    ballTrails = ballTrails.filter(trail => {
+        trail.life--;
+        trail.radius *= 0.97;
+        return trail.life > 0;
+    });
+
+    if (shakeFrames > 0) {
+        shakeFrames--;
+        shakeIntensity *= 0.88;
+    } else {
+        shakeIntensity = 0;
+    }
+
+    hitFlashAlpha *= 0.86;
+    if (hitFlashAlpha < 0.02) hitFlashAlpha = 0;
+
+    if (comboTimer > 0) {
+        comboTimer--;
+        if (comboTimer === 0) {
+            comboCount = 0;
+        }
+    }
+}
+
 // Fire beam from paddle center
 function fireBeam() {
     if (!beamAvailable || !gameStarted || gameOver) return;
     beamAvailable = false;
+    playSound('beam');
+    addShake(3, 6);
+    spawnShockwave(paddle.x + paddle.width / 2, paddle.y, '255, 140, 140');
+    triggerVibration(10);
     beams.push({
         x: paddle.x + paddle.width / 2 - 3,
         y: paddle.y,
@@ -390,24 +645,35 @@ function drawStartMessage() {
 
 // Main draw function
 function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    const offsetX = shakeFrames > 0 ? (Math.random() - 0.5) * shakeIntensity : 0;
+    const offsetY = shakeFrames > 0 ? (Math.random() - 0.5) * shakeIntensity : 0;
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
     drawBricks();
+    drawShockwaves();
+    drawBallTrails();
     drawBalls();
     drawPaddle();
     drawItems();
     drawBeams();
+    drawParticles();
+    drawFloatingTexts();
     drawBeamIndicator();
+    drawHitFlash();
     drawInfo();
 
     if (!gameStarted && !gameOver) {
         drawStartMessage();
     }
+    ctx.restore();
 
     updateBalls();
     updatePaddle();
     updateItems();
     updateBeams();
+    updateEffects();
 
     requestAnimationFrame(draw);
 }
@@ -415,12 +681,14 @@ function draw() {
 // Keyboard controls
 function startGame(e) {
     if (e) e.preventDefault();
+    unlockAudio();
     if (!gameOver) {
         gameStarted = true;
     }
 }
 
 function keyDown(e) {
+    unlockAudio();
     if (e.key === 'Right' || e.key === 'ArrowRight') {
         e.preventDefault();
         paddle.dx = paddle.speed;
@@ -471,6 +739,15 @@ function restartGame() {
     gameOver = false;
     items = [];
     beams = [];
+    particles = [];
+    shockwaves = [];
+    floatingTexts = [];
+    ballTrails = [];
+    comboCount = 0;
+    comboTimer = 0;
+    shakeIntensity = 0;
+    shakeFrames = 0;
+    hitFlashAlpha = 0;
     beamAvailable = false;
     paddleWideTimer = 0;
     paddle.width = PADDLE_NORMAL_WIDTH;
